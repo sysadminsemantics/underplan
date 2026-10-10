@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: underplan
+  namespace: underplan
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: underplan }
+  template:
+    metadata:
+      labels: { app: underplan }
+    spec:
+      containers:
+        - name: underplan
+          image: underplan:0.1.0
+          imagePullPolicy: Never   # built locally + ctr import
+          ports:
+            - containerPort: 3000
+          readinessProbe:
+            httpGet: { path: /healthz, port: 3000 }
+          volumeMounts:
+            - { name: data, mountPath: /data }
+      volumes:
+        - name: data
+          persistentVolumeClaim: { claimName: underplan-data }

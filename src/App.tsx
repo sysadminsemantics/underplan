@@ -12,6 +12,7 @@ import {
 } from './lib/types';
 import { DEFAULT_BOARD_CONFIG, generateTileMatrix, fitBoardToViewport, rotatePlacedChannel, mirrorPlacedChannel, isChannelOutOfBounds } from './lib/geometry';
 import { generateBOM, formatBOMAsCSV, formatBOMAsMarkdown } from './lib/bom';
+import { ProjectsHome } from './components/ProjectsHome';
 import { exportSvgAsPng, exportSvgDirect } from './lib/exportMap';
 
 import { Header } from './components/Header';
@@ -77,6 +78,14 @@ export default function App() {
     return DEMO_CHANNELS;
   });
   const [selectedChannelId, setSelectedChannelId] = useState<string | null>(null);
+  const [showHome, setShowHome] = useState(true);
+
+  // Undo/redo history for channels. Changes within a 400ms burst (e.g. a drag) collapse to one step.
+  const committedRef = useRef<PlacedChannel[]>(channels);
+  const pastRef = useRef<PlacedChannel[][]>([]);
+  const futureRef = useRef<PlacedChannel[][]>([]);
+  const burstRef = useRef<number | null>(null);
+  const skipRef = useRef(false);
 
   // Projects state (persisted)
   const [projects, setProjects] = useState<ProjectItem[]>(() => {
@@ -217,6 +226,52 @@ export default function App() {
     setToast({ message, type });
   }, []);
 
+  useEffect(() => {
+    if (skipRef.current) {
+      skipRef.current = false;
+      committedRef.current = channels;
+      return;
+    }
+    if (channels === committedRef.current) return;
+    if (burstRef.current === null) {
+      pastRef.current.push(committedRef.current);
+      if (pastRef.current.length > 100) pastRef.current.shift();
+      futureRef.current = [];
+    } else {
+      window.clearTimeout(burstRef.current);
+    }
+    burstRef.current = window.setTimeout(() => { burstRef.current = null; }, 400);
+    committedRef.current = channels;
+  }, [channels]);
+
+  // A different project starts with a clean history
+  useEffect(() => {
+    pastRef.current = [];
+    futureRef.current = [];
+    committedRef.current = channels;
+    burstRef.current = null;
+  }, [activeProjectId]);
+
+  const undo = useCallback(() => {
+    const prev = pastRef.current.pop();
+    if (!prev) return showToast('Nothing to undo', 'info');
+    futureRef.current.push(committedRef.current);
+    burstRef.current = null;
+    skipRef.current = true;
+    setChannels(prev);
+    setSelectedChannelId(null);
+  }, [showToast]);
+
+  const redo = useCallback(() => {
+    const next = futureRef.current.pop();
+    if (!next) return showToast('Nothing to redo', 'info');
+    pastRef.current.push(committedRef.current);
+    burstRef.current = null;
+    skipRef.current = true;
+    setChannels(next);
+    setSelectedChannelId(null);
+  }, [showToast]);
+
   // Keyboard shortcuts for CAD workflow
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
@@ -229,6 +284,13 @@ export default function App() {
       }
 
       const key = e.key.toLowerCase();
+
+      // Undo / redo (Ctrl/Cmd+Z, Shift+Ctrl/Cmd+Z, Ctrl+Y)
+      if ((e.metaKey || e.ctrlKey) && (key === 'z' || key === 'y')) {
+        e.preventDefault();
+        if (key === 'y' || e.shiftKey) redo(); else undo();
+        return;
+      }
 
       // Deselect on Escape and clean DOM focus
       if (e.key === 'Escape') {
@@ -300,7 +362,7 @@ export default function App() {
 
     window.addEventListener('keydown', handleGlobalKeyDown);
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
-  }, [selectedChannelId, channels, isZenMode, showToast]);
+  }, [selectedChannelId, channels, isZenMode, showToast, undo, redo]);
 
   // Ensure mount edit mode is cleared if selected channel changes to null
   useEffect(() => {
@@ -728,6 +790,26 @@ export default function App() {
       <div className="underplan-mobile-screen w-full h-full overflow-hidden">
         <MobileFallback />
       </div>
+
+      {showHome && (
+        <ProjectsHome
+          projects={projects}
+          activeProjectId={activeProjectId}
+          onOpen={(id) => { handleSelectProject(id); setShowHome(false); }}
+          onCreate={() => { handleCreateProject(); setShowHome(false); }}
+          onDuplicate={(id) => { handleDuplicateProject(id); setShowHome(false); }}
+          onDelete={handleDeleteProject}
+          onClose={() => setShowHome(false)}
+        />
+      )}
+      {!showHome && !isZenMode && (
+        <button
+          onClick={() => setShowHome(true)}
+          className="absolute bottom-4 left-4 z-40 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-xs text-slate-200"
+        >
+          All projects
+        </button>
+      )}
 
       {/* Main Full-Screen CAD Desktop Workspace (>= 768px) */}
       <div className="underplan-desktop-workspace flex h-full w-full flex-col bg-[#0E0F12] text-slate-100 overflow-hidden select-none relative">

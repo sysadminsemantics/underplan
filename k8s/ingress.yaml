@@ -1,0 +1,23 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: underplan
+  namespace: underplan
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: underplan.itworks.engineer
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: underplan
+                port:
+                  number: 3000
+  tls:
+    - hosts: [underplan.itworks.engineer]
+      secretName: underplan-tls

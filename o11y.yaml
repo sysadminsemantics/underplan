@@ -1,0 +1,9 @@
+deployment: k8s
+lifecycle: active
+sleepable: false
+otel:
+  level: none
+synthetics:
+  - https://underplan.itworks.engineer
+metrics:
+  kind: static
