@@ -21,7 +21,7 @@ import { Canvas } from './components/Canvas';
 import { InspectorPanel } from './components/InspectorPanel';
 import { BOMDrawer } from './components/BOMDrawer';
 import { Toast } from './components/Toast';
-import { MobileFallback } from './components/MobileFallback';
+import { MobileViewer } from './components/MobileViewer';
 
 import { DEMO_CHANNELS } from './data/demoLayout';
 
@@ -788,7 +788,14 @@ export default function App() {
     <div className="relative w-screen h-screen h-[100dvh] overflow-hidden bg-[#0E0F12] font-sans">
       {/* Smartphone Breakpoint Fallback View (< 768px) */}
       <div className="underplan-mobile-screen w-full h-full overflow-hidden">
-        <MobileFallback />
+        <MobileViewer
+          title={projectTitle}
+          boardConfig={boardConfig}
+          channels={channels}
+          categories={categories as any}
+          customAccessories={customAccessories}
+          onOpenProjects={() => setShowHome(true)}
+        />
       </div>
 
       {showHome && (
