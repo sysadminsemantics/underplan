@@ -812,7 +812,7 @@ export default function App() {
       {!showHome && !isZenMode && (
         <button
           onClick={() => setShowHome(true)}
-          className="absolute bottom-4 left-4 z-40 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-xs text-slate-200"
+          className="hidden lg:block absolute bottom-4 left-4 z-40 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-xs text-slate-200"
         >
           All projects
         </button>
